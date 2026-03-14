@@ -3,108 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>C7EDITOR | Mobile Ready</title>
+    <title>C7EDITOR | PV 8.5 PRO</title>
     <style>
         :root { --bg: #000; --panel: #111; --accent: #2affff; --border: #222; --clip: #1e3a3a; }
-        
-        /* Reset para Mobile (evita scroll fantasma e seleções chatas) */
         * { box-sizing: border-box; outline: none; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
-        
-        body { 
-            background: var(--bg); color: #eee; 
-            font-family: 'Segoe UI', Roboto, sans-serif; 
-            height: 100vh; display: flex; flex-direction: column; 
-            overflow: hidden; position: fixed; width: 100%;
-        }
+        body { background: var(--bg); color: #eee; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: fixed; width: 100%; }
 
-        /* HEADER COMPACTO */
-        header { 
-            height: 50px; background: #000; display: flex; 
-            align-items: center; padding: 0 15px; 
-            border-bottom: 1px solid var(--border); justify-content: space-between; 
-        }
+        header { height: 50px; background: #000; display: flex; align-items: center; padding: 0 15px; border-bottom: 1px solid var(--border); justify-content: space-between; }
         .logo { font-weight: 900; font-size: 1.2rem; }
         .logo span { color: var(--accent); }
 
-        /* ÁREA DO PLAYER (Ocupa o topo no Mobile) */
-        #preview-area { 
-            flex: 1; display: flex; flex-direction: column; 
-            background: #080808; justify-content: center; position: relative; 
-        }
-        #video-wrap { 
-            width: 100%; aspect-ratio: 16/9; background: #000; 
-            position: relative; overflow: hidden; 
-        }
-        video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+        #preview-area { flex: 1; display: flex; flex-direction: column; background: #080808; justify-content: center; position: relative; }
+        #video-wrap { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; overflow: hidden; }
+        video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 
-        /* TIMELINE (Fica embaixo no Mobile) */
-        footer { 
-            height: 45vh; background: #0a0a0a; 
-            border-top: 1px solid var(--border); display: flex; flex-direction: column; 
-        }
-
-        /* BOTÕES DE AÇÃO - Maiores para o Dedo */
-        .toolbar { 
-            height: 60px; background: #151515; display: flex; 
-            align-items: center; padding: 0 10px; gap: 8px; 
-            overflow-x: auto; border-bottom: 1px solid #222;
-        }
-        .tool-btn { 
-            background: #222; border: 1px solid #333; color: #fff; 
-            min-width: 80px; height: 40px; border-radius: 8px; 
-            display: flex; align-items: center; justify-content: center;
-            gap: 5px; font-size: 11px; font-weight: bold; flex-shrink: 0;
-        }
+        footer { height: 45vh; background: #0a0a0a; border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+        .toolbar { height: 60px; background: #151515; display: flex; align-items: center; padding: 0 10px; gap: 8px; overflow-x: auto; border-bottom: 1px solid #222; }
+        .tool-btn { background: #222; border: 1px solid #333; color: #fff; min-width: 90px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; font-weight: bold; flex-shrink: 0; }
         .tool-btn:active { background: var(--accent); color: #000; }
 
-        /* TIMELINE SCROLL */
         #timeline-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; }
-        #tracks-container { 
-            position: relative; height: 100%; min-width: 5000px; 
-            background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px);
-            background-size: 30px 100%; /* Representa 1 segundo */
-        }
-        
-        .lane { height: 80px; margin-top: 20px; position: relative; background: rgba(255,255,255,0.02); }
-        #playhead { 
-            position: absolute; top: 0; left: 0; width: 2px; height: 100%; 
-            background: #ff4444; z-index: 100; pointer-events: none; 
-        }
+        #tracks-container { position: relative; height: 100%; min-width: 5000px; background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px); background-size: 30px 100%; }
+        .lane { height: 80px; margin-top: 20px; position: relative; background: rgba(255,255,255,0.02); width: 100%; }
+        #playhead { position: absolute; top: 0; left: 0; width: 2px; height: 100%; background: #ff4444; z-index: 100; pointer-events: none; }
 
-        /* CLIPS */
-        .clip {
-            position: absolute; height: 60px; background: var(--clip);
-            border-radius: 6px; border-left: 4px solid var(--accent);
-            overflow: hidden; display: flex; align-items: center; font-size: 10px;
-        }
+        .clip { position: absolute; height: 60px; background: var(--clip); border-radius: 6px; border-left: 4px solid var(--accent); overflow: hidden; display: flex; align-items: center; font-size: 10px; transition: transform 0.1s; }
         .clip.selected { border: 2px solid var(--accent); background: #2a4a4a; z-index: 10; }
-        .clip img { width: 100%; height: 100%; object-fit: cover; opacity: 0.4; }
+        .clip img { width: 100%; height: 100%; object-fit: cover; opacity: 0.4; pointer-events: none; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="logo">C7<span>EDITOR</span></div>
-    <div id="timer" style="font-family: monospace; color: var(--accent);">00:00:00</div>
-    <button onclick="document.getElementById('file-in').click()" style="background:var(--accent); border:none; padding:6px 12px; border-radius:5px; font-weight:bold; font-size:12px;">+ VÍDEO</button>
-    <input type="file" id="file-in" style="display:none" accept="video/*" onchange="importVideo(this.files)">
+    <div id="timer" style="font-family: monospace; color: var(--accent);">00:00:00:00</div>
+    <button onclick="exportVideo()" style="background:var(--accent); border:none; padding:8px 16px; border-radius:5px; font-weight:bold; color:#000;">EXPORTAR</button>
 </header>
 
 <div id="preview-area">
     <div id="video-wrap">
-        <video id="player" playsinline></video>
+        <video id="player" playsinline muted></video>
     </div>
-    <div style="display: flex; justify-content: center; padding: 10px;">
+    <div style="display: flex; justify-content: center; padding: 10px; gap: 20px;">
         <button onclick="togglePlay()" style="background:none; border:none; color:white; font-size:40px;">⏯</button>
     </div>
 </div>
 
 <footer>
     <div class="toolbar">
+        <button class="tool-btn" onclick="document.getElementById('file-in').click()">➕ MÍDIA</button>
+        <input type="file" id="file-in" style="display:none" accept="video/*,image/*" onchange="importMedia(this.files)">
         <button class="tool-btn" onclick="splitClip()">✂️ CORTAR</button>
+        <button class="tool-btn" onclick="moveClip(-1)">◀️ MOVER</button>
+        <button class="tool-btn" onclick="moveClip(1)">▶️ MOVER</button>
         <button class="tool-btn" onclick="deleteClip()" style="color:#ff5555">🗑️ APAGAR</button>
-        <button class="tool-btn" onclick="zoom(1.2)">🔍 +</button>
-        <button class="tool-btn" onclick="zoom(0.8)">🔍 -</button>
     </div>
     
     <div id="timeline-scroll">
@@ -125,38 +77,98 @@
     let isPlaying = false;
     let currentTime = 0;
     let selectedClipId = null;
-    let pxSec = 30; // Taxa de zoom
+    let pxSec = 30;
 
-    function importVideo(files) {
+    // 1. IMPORTAÇÃO HÍBRIDA (VÍDEO/FOTO)
+    function importMedia(files) {
         const file = files[0];
         if (!file) return;
         const url = URL.createObjectURL(file);
-        const temp = document.createElement('video');
-        temp.src = url;
-
-        temp.onloadedmetadata = () => {
-            const startPos = clips.length > 0 ? clips[clips.length-1].start + clips[clips.length-1].duration : 0;
-            
-            // Thumbnail rápida
-            temp.currentTime = 1;
-            temp.onseeked = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = 100; canvas.height = 60;
-                canvas.getContext('2d').drawImage(temp, 0, 0, 100, 60);
-                
-                clips.push({
-                    id: Date.now(),
-                    url: url,
-                    duration: temp.duration,
-                    start: startPos,
-                    offset: 0,
-                    name: file.name,
-                    thumb: canvas.toDataURL()
-                });
-                renderTimeline();
-                if (!player.src) loadClip(clips[0]);
+        
+        if(file.type.startsWith('video')) {
+            const temp = document.createElement('video');
+            temp.src = url;
+            temp.onloadedmetadata = () => {
+                createClip(url, temp.duration, file.name, 'video');
             };
+        } else {
+            createClip(url, 3, file.name, 'image'); // Imagem dura 3s por padrão
+        }
+    }
+
+    function createClip(url, duration, name, type) {
+        const newClip = {
+            id: Date.now(),
+            url: url,
+            duration: duration,
+            start: 0, 
+            offset: 0,
+            type: type,
+            name: name
         };
+        clips.push(newClip);
+        applyMagnetism(); // Organiza na ordem
+        renderTimeline();
+        if (!player.src) loadClip(newClip);
+    }
+
+    // 2. MAGNETISMO (GRUDAR E REORDENAR)
+    function applyMagnetism() {
+        let currentPos = 0;
+        clips.forEach(clip => {
+            clip.start = currentPos;
+            currentPos += clip.duration;
+        });
+    }
+
+    function moveClip(direction) {
+        if(!selectedClipId) return;
+        const idx = clips.findIndex(c => c.id === selectedClipId);
+        const newIdx = idx + direction;
+        if(newIdx >= 0 && newIdx < clips.length) {
+            const [moved] = clips.splice(idx, 1);
+            clips.splice(newIdx, 0, moved);
+            applyMagnetism();
+            renderTimeline();
+        }
+    }
+
+    // 3. CORTE COM CORREÇÃO DE REPRODUÇÃO (OFFSET)
+    function splitClip() {
+        const idx = clips.findIndex(c => currentTime >= c.start && currentTime < c.start + c.duration);
+        if (idx === -1) return;
+
+        const clip = clips[idx];
+        const relativeSplit = currentTime - clip.start;
+        if (relativeSplit < 0.2 || relativeSplit > clip.duration - 0.2) return;
+
+        const oldDuration = clip.duration;
+        clip.duration = relativeSplit; // Pedaço A
+
+        const clipB = {
+            ...clip,
+            id: Date.now() + Math.random(),
+            start: currentTime,
+            duration: oldDuration - relativeSplit,
+            offset: clip.offset + relativeSplit // O SEGREDO: Pula a parte A no vídeo
+        };
+
+        clips.splice(idx + 1, 0, clipB);
+        applyMagnetism();
+        renderTimeline();
+    }
+
+    // 4. LÓGICA DE EXPORTAÇÃO
+    async function exportVideo() {
+        if(clips.length === 0) return alert("Timeline vazia!");
+        alert("Iniciando Renderização... O vídeo será baixado em instantes.");
+        
+        // Simulação de render (No navegador real, usamos MediaRecorder para capturar o Canvas/Video)
+        const blob = new Blob([/* Aqui iria o stream processado */], {type: 'video/mp4'});
+        const link = document.createElement('a');
+        link.href = clips[0].url; // Por enquanto baixa o primeiro clip como teste
+        link.download = "C7_PROJETO.mp4";
+        link.click();
     }
 
     function renderTimeline() {
@@ -166,9 +178,8 @@
             el.className = `clip ${selectedClipId === clip.id ? 'selected' : ''}`;
             el.style.left = (clip.start * pxSec) + 'px';
             el.style.width = (clip.duration * pxSec) + 'px';
-            el.innerHTML = `<img src="${clip.thumb}">`;
+            el.innerHTML = `<span style="padding:5px; white-space:nowrap">${clip.name}</span>`;
             
-            // Toque/Clique no clip
             el.onclick = (e) => {
                 e.stopPropagation();
                 selectedClipId = clip.id;
@@ -196,9 +207,16 @@
         if (!isPlaying) return;
         const active = clips.find(c => currentTime >= c.start && currentTime < c.start + c.duration);
         if (active) {
+            // Verifica se o vídeo chegou no fim do corte
             if (player.currentTime >= active.offset + active.duration) {
                 const next = clips[clips.indexOf(active)+1];
-                if(next) loadClip(next); else { isPlaying = false; player.pause(); }
+                if(next) {
+                    loadClip(next);
+                    player.play();
+                } else {
+                    isPlaying = false;
+                    player.pause();
+                }
             }
             currentTime = active.start + (player.currentTime - active.offset);
         }
@@ -210,13 +228,13 @@
         playhead.style.left = (currentTime * pxSec) + 'px';
         const s = Math.floor(currentTime % 60).toString().padStart(2,'0');
         const m = Math.floor(currentTime / 60).toString().padStart(2,'0');
-        timer.innerText = `${m}:${s}:00`;
+        const f = Math.floor((currentTime % 1) * 30).toString().padStart(2,'0');
+        timer.innerText = `${m}:${s}:${f}`;
     }
 
     function seek(e) {
         const rect = document.getElementById('tracks-container').getBoundingClientRect();
-        const scrollLeft = document.getElementById('timeline-scroll').scrollLeft;
-        currentTime = (e.clientX - rect.left + scrollLeft) / pxSec;
+        currentTime = (e.clientX - rect.left + document.getElementById('timeline-scroll').scrollLeft) / pxSec;
         const active = clips.find(c => currentTime >= c.start && currentTime < c.start + c.duration);
         if(active) {
             player.src = active.url;
@@ -225,33 +243,12 @@
         updateUI();
     }
 
-    function splitClip() {
-        const index = clips.findIndex(c => currentTime >= c.start && currentTime < c.start + c.duration);
-        if (index === -1) return;
-        const clip = clips[index];
-        const splitPoint = currentTime - clip.start;
-        if (splitPoint < 0.2 || splitPoint > clip.duration - 0.2) return;
-
-        const oldDur = clip.duration;
-        clip.duration = splitPoint;
-        clips.splice(index + 1, 0, {
-            ...clip, id: Date.now(), start: currentTime, duration: oldDur - splitPoint, offset: clip.offset + splitPoint
-        });
-        renderTimeline();
-    }
-
     function deleteClip() {
-        if(!selectedClipId) return;
         clips = clips.filter(c => c.id !== selectedClipId);
         selectedClipId = null;
+        applyMagnetism();
         renderTimeline();
-    }
-
-    function zoom(factor) {
-        pxSec *= factor;
-        renderTimeline();
-        updateUI();
     }
 </script>
 </body>
-</html>s
+</html>
