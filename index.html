@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>C7EDITOR | Mobile Ready</title>
+    <style>
+        :root { --bg: #000; --panel: #111; --accent: #2affff; --border: #222; --clip: #1e3a3a; }
+        
+        /* Reset para Mobile (evita scroll fantasma e seleções chatas) */
+        * { box-sizing: border-box; outline: none; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+        
+        body { 
+            background: var(--bg); color: #eee; 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            height: 100vh; display: flex; flex-direction: column; 
+            overflow: hidden; position: fixed; width: 100%;
+        }
+
+        /* HEADER COMPACTO */
+        header { 
+            height: 50px; background: #000; display: flex; 
+            align-items: center; padding: 0 15px; 
+            border-bottom: 1px solid var(--border); justify-content: space-between; 
+        }
+        .logo { font-weight: 900; font-size: 1.2rem; }
+        .logo span { color: var(--accent); }
+
+        /* ÁREA DO PLAYER (Ocupa o topo no Mobile) */
+        #preview-area { 
+            flex: 1; display: flex; flex-direction: column; 
+            background: #080808; justify-content: center; position: relative; 
+        }
+        #video-wrap { 
+            width: 100%; aspect-ratio: 16/9; background: #000; 
+            position: relative; overflow: hidden; 
+        }
+        video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+
+        /* TIMELINE (Fica embaixo no Mobile) */
+        footer { 
+            height: 45vh; background: #0a0a0a; 
+            border-top: 1px solid var(--border); display: flex; flex-direction: column; 
+        }
+
+        /* BOTÕES DE AÇÃO - Maiores para o Dedo */
+        .toolbar { 
+            height: 60px; background: #151515; display: flex; 
+            align-items: center; padding: 0 10px; gap: 8px; 
+            overflow-x: auto; border-bottom: 1px solid #222;
+        }
+        .tool-btn { 
+            background: #222; border: 1px solid #333; color: #fff; 
+            min-width: 80px; height: 40px; border-radius: 8px; 
+            display: flex; align-items: center; justify-content: center;
+            gap: 5px; font-size: 11px; font-weight: bold; flex-shrink: 0;
+        }
+        .tool-btn:active { background: var(--accent); color: #000; }
+
+        /* TIMELINE SCROLL */
+        #timeline-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; }
+        #tracks-container { 
+            position: relative; height: 100%; min-width: 5000px; 
+            background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px);
+            background-size: 30px 100%; /* Representa 1 segundo */
+        }
+        
+        .lane { height: 80px; margin-top: 20px; position: relative; background: rgba(255,255,255,0.02); }
+        #playhead { 
+            position: absolute; top: 0; left: 0; width: 2px; height: 100%; 
+            background: #ff4444; z-index: 100; pointer-events: none; 
+        }
+
+        /* CLIPS */
+        .clip {
+            position: absolute; height: 60px; background: var(--clip);
+            border-radius: 6px; border-left: 4px solid var(--accent);
+            overflow: hidden; display: flex; align-items: center; font-size: 10px;
+        }
+        .clip.selected { border: 2px solid var(--accent); background: #2a4a4a; z-index: 10; }
+        .clip img { width: 100%; height: 100%; object-fit: cover; opacity: 0.4; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">C7<span>EDITOR</span></div>
+    <div id="timer" style="font-family: monospace; color: var(--accent);">00:00:00</div>
+    <button onclick="document.getElementById('file-in').click()" style="background:var(--accent); border:none; padding:6px 12px; border-radius:5px; font-weight:bold; font-size:12px;">+ VÍDEO</button>
+    <input type="file" id="file-in" style="display:none" accept="video/*" onchange="importVideo(this.files)">
+</header>
+
+<div id="preview-area">
+    <div id="video-wrap">
+        <video id="player" playsinline></video>
+    </div>
+    <div style="display: flex; justify-content: center; padding: 10px;">
+        <button onclick="togglePlay()" style="background:none; border:none; color:white; font-size:40px;">⏯</button>
+    </div>
+</div>
+
+<footer>
+    <div class="toolbar">
+        <button class="tool-btn" onclick="splitClip()">✂️ CORTAR</button>
+        <button class="tool-btn" onclick="deleteClip()" style="color:#ff5555">🗑️ APAGAR</button>
+        <button class="tool-btn" onclick="zoom(1.2)">🔍 +</button>
+        <button class="tool-btn" onclick="zoom(0.8)">🔍 -</button>
+    </div>
+    
+    <div id="timeline-scroll">
+        <div id="tracks-container" onclick="seek(event)">
+            <div id="playhead"></div>
+            <div class="lane" id="lane-v1"></div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    const player = document.getElementById('player');
+    const playhead = document.getElementById('playhead');
+    const timer = document.getElementById('timer');
+    const laneV1 = document.getElementById('lane-v1');
+    
+    let clips = [];
+    let isPlaying = false;
+    let currentTime = 0;
+    let selectedClipId = null;
+    let pxSec = 30; // Taxa de zoom
+
+    function importVideo(files) {
+        const file = files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        const temp = document.createElement('video');
+        temp.src = url;
+
+        temp.onloadedmetadata = () => {
+            const startPos = clips.length > 0 ? clips[clips.length-1].start + clips[clips.length-1].duration : 0;
+            
+            // Thumbnail rápida
+            temp.currentTime = 1;
+            temp.onseeked = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 100; canvas.height = 60;
+                canvas.getContext('2d').drawImage(temp, 0, 0, 100, 60);
+                
+                clips.push({
+                    id: Date.now(),
+                    url: url,
+                    duration: temp.duration,
+                    start: startPos,
+                    offset: 0,
+                    name: file.name,
+                    thumb: canvas.toDataURL()
+                });
+                renderTimeline();
+                if (!player.src) loadClip(clips[0]);
+            };
+        };
+    }
+
+    function renderTimeline() {
+        laneV1.innerHTML = '';
+        clips.forEach(clip => {
+            const el = document.createElement('div');
+            el.className = `clip ${selectedClipId === clip.id ? 'selected' : ''}`;
+            el.style.left = (clip.start * pxSec) + 'px';
+            el.style.width = (clip.duration * pxSec) + 'px';
+            el.innerHTML = `<img src="${clip.thumb}">`;
+            
+            // Toque/Clique no clip
+            el.onclick = (e) => {
+                e.stopPropagation();
+                selectedClipId = clip.id;
+                loadClip(clip);
+                renderTimeline();
+            };
+            laneV1.appendChild(el);
+        });
+    }
+
+    function loadClip(clip) {
+        player.src = clip.url;
+        player.currentTime = clip.offset + (currentTime - clip.start);
+        updateUI();
+    }
+
+    function togglePlay() {
+        if (!player.src) return;
+        isPlaying = !isPlaying;
+        isPlaying ? player.play() : player.pause();
+        if(isPlaying) requestAnimationFrame(updateLoop);
+    }
+
+    function updateLoop() {
+        if (!isPlaying) return;
+        const active = clips.find(c => currentTime >= c.start && currentTime < c.start + c.duration);
+        if (active) {
+            if (player.currentTime >= active.offset + active.duration) {
+                const next = clips[clips.indexOf(active)+1];
+                if(next) loadClip(next); else { isPlaying = false; player.pause(); }
+            }
+            currentTime = active.start + (player.currentTime - active.offset);
+        }
+        updateUI();
+        requestAnimationFrame(updateLoop);
+    }
+
+    function updateUI() {
+        playhead.style.left = (currentTime * pxSec) + 'px';
+        const s = Math.floor(currentTime % 60).toString().padStart(2,'0');
+        const m = Math.floor(currentTime / 60).toString().padStart(2,'0');
+        timer.innerText = `${m}:${s}:00`;
+    }
+
+    function seek(e) {
+        const rect = document.getElementById('tracks-container').getBoundingClientRect();
+        const scrollLeft = document.getElementById('timeline-scroll').scrollLeft;
+        currentTime = (e.clientX - rect.left + scrollLeft) / pxSec;
+        const active = clips.find(c => currentTime >= c.start && currentTime < c.start + c.duration);
+        if(active) {
+            player.src = active.url;
+            player.currentTime = active.offset + (currentTime - active.start);
+        }
+        updateUI();
+    }
+
+    function splitClip() {
+        const index = clips.findIndex(c => currentTime >= c.start && currentTime < c.start + c.duration);
+        if (index === -1) return;
+        const clip = clips[index];
+        const splitPoint = currentTime - clip.start;
+        if (splitPoint < 0.2 || splitPoint > clip.duration - 0.2) return;
+
+        const oldDur = clip.duration;
+        clip.duration = splitPoint;
+        clips.splice(index + 1, 0, {
+            ...clip, id: Date.now(), start: currentTime, duration: oldDur - splitPoint, offset: clip.offset + splitPoint
+        });
+        renderTimeline();
+    }
+
+    function deleteClip() {
+        if(!selectedClipId) return;
+        clips = clips.filter(c => c.id !== selectedClipId);
+        selectedClipId = null;
+        renderTimeline();
+    }
+
+    function zoom(factor) {
+        pxSec *= factor;
+        renderTimeline();
+        updateUI();
+    }
+</script>
+</body>
+</html>s
